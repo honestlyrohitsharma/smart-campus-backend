@@ -24,11 +24,14 @@ app = FastAPI()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
-# CORS Middleware
+# --- UPDATED CORS GUEST LIST ---
+# We have added your live Netlify website URL here.
 origins = [
     "http://localhost",
     "http://localhost:5500",
     "http://127.0.0.1:5500",
+    "https://cozy-horse-267718.netlify.app", # <-- YOUR LIVE WEBSITE
+    "https://incomparable-dragon-fb676e.netlify.app" # <-- YOUR OTHER LIVE WEBSITE URL
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -37,6 +40,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# -----------------------------
 
 # Database session dependency
 def get_db():
@@ -58,6 +62,8 @@ def get_current_active_user(token: str = Depends(oauth2_scheme), db: Session = D
     if user is None:
         raise credentials_exception
     return user
+
+# --- (The rest of your main.py file remains the same) ---
 
 # Pydantic Models
 class StudentPublic(BaseModel):
@@ -149,3 +155,4 @@ def log_attendance_from_rfid(card_uid: str, db: Session = Depends(get_db)):
 def read_own_attendance(current_user: models.Student = Depends(get_current_active_user), db: Session = Depends(get_db)):
     attendance_records = db.query(models.AttendanceRecord).filter(models.AttendanceRecord.student_id == current_user.id).all()
     return attendance_records
+
