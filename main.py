@@ -24,14 +24,13 @@ app = FastAPI()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
-# --- UPDATED CORS GUEST LIST ---
-# This is the crucial fix. We are adding your live Netlify website URLs here.
+# CORS Middleware
 origins = [
     "http://localhost",
     "http://localhost:5500",
     "http://127.0.0.1:5500",
-    "https://incomparable-dragon-fb676e.netlify.app", # Your first live site
-    "https://cozy-horse-267718.netlify.app"      # Your second live site
+    "https://incomparable-dragon-fb676e.netlify.app",
+    "https://cozy-horse-267718.netlify.app"
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -40,10 +39,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# -----------------------------
 
-# --- (The rest of your main.py file remains the same) ---
-
+# Database session dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -51,6 +48,7 @@ def get_db():
     finally:
         db.close()
 
+# Current user dependency
 def get_current_active_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -63,6 +61,7 @@ def get_current_active_user(token: str = Depends(oauth2_scheme), db: Session = D
         raise credentials_exception
     return user
 
+# Pydantic Models
 class StudentPublic(BaseModel):
     student_id_str: str
     name: str
@@ -85,16 +84,21 @@ class UserLogin(BaseModel):
     student_id_str: str
     password: str
 
+# API Endpoints
 @app.get("/")
 def read_root():
     return {"status": "Smart Campus Backend is running!"}
 
 @app.post("/api/students/register")
 def register_student(student: StudentCreate, db: Session = Depends(get_db)):
-    db_student = db.query(models.Student).filter(models.Student.student_id_str == student.student_id_str).first()
-    if db_student:
+    db_student_by_id = db.query(models.Student).filter(models.Student.student_id_str == student.student_id_str).first()
+    if db_student_by_id:
         raise HTTPException(status_code=400, detail="Student ID already registered")
     
+    db_student_by_card = db.query(models.Student).filter(models.Student.card_uid == student.card_uid).first()
+    if db_student_by_card:
+        raise HTTPException(status_code=400, detail="Card UID already registered")
+
     hashed_password = auth.hash_password(student.password)
     new_student = models.Student(
         student_id_str=student.student_id_str,
@@ -149,6 +153,4 @@ def log_attendance_from_rfid(card_uid: str, db: Session = Depends(get_db)):
 
 @app.get("/api/attendance/me", response_model=List[AttendancePublic])
 def read_own_attendance(current_user: models.Student = Depends(get_current_active_user), db: Session = Depends(get_db)):
-    attendance_records = db.query(models.AttendanceRecord).filter(models.AttendanceRecord.student_id == current_user.id).all()
-    return attendance_records
-
+    return db.query(models.AttendanceRecord).filter(models.AttendanceRecord.student_id == current_user.id).all()
