@@ -25,13 +25,13 @@ app = FastAPI()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 # --- UPDATED CORS GUEST LIST ---
-# We have added your live Netlify website URL here.
+# This is the crucial fix. We are adding your live Netlify website URLs here.
 origins = [
     "http://localhost",
     "http://localhost:5500",
     "http://127.0.0.1:5500",
-    "https://cozy-horse-267718.netlify.app", # <-- YOUR LIVE WEBSITE
-    "https://incomparable-dragon-fb676e.netlify.app" # <-- YOUR OTHER LIVE WEBSITE URL
+    "https://incomparable-dragon-fb676e.netlify.app", # Your first live site
+    "https://cozy-horse-267718.netlify.app"      # Your second live site
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -42,7 +42,8 @@ app.add_middleware(
 )
 # -----------------------------
 
-# Database session dependency
+# --- (The rest of your main.py file remains the same) ---
+
 def get_db():
     db = SessionLocal()
     try:
@@ -50,7 +51,6 @@ def get_db():
     finally:
         db.close()
 
-# Current user dependency
 def get_current_active_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -63,9 +63,6 @@ def get_current_active_user(token: str = Depends(oauth2_scheme), db: Session = D
         raise credentials_exception
     return user
 
-# --- (The rest of your main.py file remains the same) ---
-
-# Pydantic Models
 class StudentPublic(BaseModel):
     student_id_str: str
     name: str
@@ -88,7 +85,6 @@ class UserLogin(BaseModel):
     student_id_str: str
     password: str
 
-# API Endpoints
 @app.get("/")
 def read_root():
     return {"status": "Smart Campus Backend is running!"}
